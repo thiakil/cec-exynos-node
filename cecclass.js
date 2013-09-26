@@ -108,7 +108,11 @@ function CECLogical(logical_addr){
 
 util.inherits(CECLogical, events.EventEmitter);
 
-CECLogical.prototype.sendMessage = function(message) {  message.src = this.logical_addr; return cec_master.sendMessage(message); }
+CECLogical.prototype.sendMessage = function(message) { 
+	if (typeof(message.src) == "undefined") 
+		message.src = this.logical_addr; 
+	return cec_master.sendMessage(message);
+}
 
 CECLogical.prototype.listen = function() {console.log(this.logical_addr); console.log("iocl: %d", ioctl.setLogicalAddress(cecfd+0, this.logical_addr+0)); }
 
@@ -124,5 +128,5 @@ test.on('received', function(message){
 }).on('connected', function(){
 	console.log(test.sendMessage({dst: 4, opcode: ceccodes.CEC_INFO_REQ_PHYS_ADDR}));
 	console.log(test.sendMessage({dst: 4, opcode: ceccodes.CEC_OSD_REQ_OSD}));
-	console.log(test.sendMessage({dst: 4, opcode: ceccodes.CEC_POWER_REQ_STATUS}));
+	console.log(test.sendMessage({src: 0, dst: 4, opcode: ceccodes.CEC_POWER_REQ_STATUS}));
 });
