@@ -15,28 +15,38 @@ function cecCodeToString(code){
 	}
 }
 
-function CECMaster() {
+function CECNode(logical_addr) {
+    if (arguments.length == 0)
+    	throw "must specify logical address!";
     events.EventEmitter.call(this);
-    var master=this;
+    this.logical_addr = logical_addr;
+	this.listened = false;
+    var cecnode=this;
    	fs.open('/dev/CEC', 'r+', function(err,fd){
 		cecfd = fd;
 		//console.log('opened '+err);
 		readStream = fs.createReadStream('/dev/CEC', {'fd': fd, autoClose: false, 'flags': 'r+'});
-		master.emit('connected');
+		cecnode.listen();
+		cecnode.emit('connected');
 	    readStream.on('readable', function() {
 	  		// there is some data to read now
 	  		//console.log("theres data");
-	  		master.emit('received', cec_master.readCecPacket());
+	  		cecnode.emit('received', readCecPacket(readStream));
 		});
 	});
 }
 
-util.inherits(CECMaster, events.EventEmitter);
+util.inherits(CECNode, events.EventEmitter);
 
-CECMaster.prototype.sendMessage = function(message) {
+module.exports.CECNode = CECNode;
+module.exports.cecCodeToString = cecCodeToString;
+
+CECNode.prototype.sendMessage = function(message) {
     //this.emit("data", data);
-    if (typeof(message.src) == "undefined" || typeof(message.dst) == "undefined")
+    if (typeof(message.dst) == "undefined")
 		return 0;
+	if (typeof(message.src) == "undefined") 
+		message.src = this.logical_addr; 
 	var numArgs = 1;
 	if (typeof(message.opcode) != "undefined")
 		numArgs++;
@@ -75,7 +85,7 @@ CECMaster.prototype.sendMessage = function(message) {
     //this.emit('received', message);
 }
 
-CECMaster.prototype.readCecPacket = function(){
+function readCecPacket(readStream){
 	//console.log('reading');
 	var message = readStream.read();
 	//console.log(message);
@@ -87,63 +97,5 @@ CECMaster.prototype.readCecPacket = function(){
 	return decoded;
 }
 
-var cec_master = new CECMaster();
 
-function CECLogical(logical_addr){
-	events.EventEmitter.call(this);
-	this.logical_addr = -1;
-	this.listened = false;
-	var logical = this;
-	if (cecfd != -1)
-		this.listen();
-	cec_master.on('received', function(message){
-		//console.log('we got called');
-		console.log(message);
-		if (message.src == logical.logical_addr)
-			return;//ignore our own messages!
-		if (logical.promiscuous || message.dst == logical.logical_addr || message.dst == ceccodes.CEC_BROADCAST)
-			logical.emit('received', message);
-	}).on('connected', function(){
-		logical.emit('connected');
-		if (!logical.listened)
-			logical.listen();
-	});
-	if (arguments.length == 0)
-	{
-		this.monitor_mode = true;
-		this.promiscuous = true;
-		return;
-	}
-	this.logical_addr = logical_addr;
-}
-
-util.inherits(CECLogical, events.EventEmitter);
-
-CECLogical.prototype.sendMessage = function(message) { 
-	if (typeof(message.src) == "undefined") 
-		message.src = this.logical_addr; 
-	return cec_master.sendMessage(message);
-}
-
-CECLogical.prototype.listen = function() {/*console.log(this.logical_addr);*/ /*console.log("iocl: %d", */ioctl.setLogicalAddress(cecfd, this.logical_addr)/*)*/; }
-
-var test = new CECLogical(0);
-
-test.on('received', function(message){
-	var opcode = typeof(message.opcode) != "undefined" ? cecCodeToString(message.opcode) : 'ping';
-	console.log("%d > %d: %s", message.src, message.dst, opcode);
-	if (typeof  message.args != "undefined")
-		console.log( message.args);
-	if (message.opcode == ceccodes.CEC_OSD_SET_OSD)
-		console.log(message.args.toString());
-}).on('connected', function(){
-	//console.log(test.sendMessage({dst: 4, opcode: ceccodes.CEC_INFO_REQ_PHYS_ADDR}));
-	//console.log(test.sendMessage({dst: 4, opcode: ceccodes.CEC_OSD_REQ_OSD}));
-	//console.log("sendng: %d", test.sendMessage({dst: 4, opcode: ceccodes.CEC_POWER_REQ_STATUS}));
-	//test.sendMessage({dst: 0xf, opcode: ceccodes.CEC_ROUTING_REQ_PATH, args: [0x20, 0]});
-	/*for (i=1; i<14; i++){
-		console.log("pinging %d: %d", i, test.sendMessage({dst: i}));
-	}*/
-	//console.log("sendng: %d", test.sendMessage({dst: 4, opcode: ceccodes.CEC_POWER_REQ_STATUS}));
-	//console.log(cec_master.readCecPacket());
-});
+CECNode.prototype.listen = function() {/*console.log(this.logical_addr);*/ /*console.log("iocl: %d", */ioctl.setLogicalAddress(cecfd, this.logical_addr)/*)*/; }
