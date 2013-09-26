@@ -1,4 +1,4 @@
-var cec = require('./cecclass');
+var cec = require('./CECNode');
 var ceccodes = require('./ceccodes');
 
 var test = new cec.CECNode(0);
