@@ -21,7 +21,7 @@ Handle<Value> setLogAddr(const Arguments& args) {
     return scope.Close(Undefined());
   }
 
-  if (!args[0]->IsNumber()|| !args[1]->IsNumber()) {
+  if (!(args[0]->IsNumber() || args[0]->IsNumberObject()) || !(args[1]->IsNumber() || args[1]->IsNumberObject())) {
     ThrowException(Exception::TypeError(String::New("Wrong arguments")));
     return scope.Close(Undefined());
   }
@@ -29,7 +29,9 @@ Handle<Value> setLogAddr(const Arguments& args) {
   int returnvalue = 1;
   int fd = args[0]->NumberValue();
 	unsigned int laddr = args[1]->NumberValue();
-	if (ioctl(fd, CEC_IOC_SETLADDR, &laddr)) {
+  int iocres = ioctl(fd, CEC_IOC_SETLADDR, &laddr);
+  //printf("%d: set address to %d: %d\n", fd, laddr, iocres);
+  if (iocres) {
         returnvalue = 0;
     }
 
